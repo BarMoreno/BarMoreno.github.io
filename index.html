@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bar Moreno | Game Designer</title>
+<meta name="description" content="Portfolio of Bar Moreno, generalist game designer studying Independent Game Production at DAE, Belgium.">
+<meta property="og:title" content="Bar Moreno | Game Designer">
+<meta property="og:description" content="Game design, level design and 3D art portfolio.">
+<meta property="og:image" content="assets/og-card.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23ffc531'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%23fff' opacity='.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="#top"><i></i>Bar Moreno</a>
+    <nav aria-label="Main">
+      <a href="#work">Work</a>
+      <a href="#archive" class="hide-sm">Archive</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+      <a class="cv" id="nav-cv" href="#" target="_blank" rel="noopener">CV ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-text">
+        <p class="label">Generalist game designer · DAE, Belgium</p>
+        <h1>Bar<br>Moreno<span>.</span></h1>
+        <p class="lede">I design games by <strong>finding the fun first</strong>, then polishing the feedback until every input feels good. Mechanics, levels, and the 3D art to go with them.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#work">See my work</a>
+          <a class="btn" href="https://glassir.itch.io/" target="_blank" rel="noopener">Play on itch.io ↗</a>
+        </div>
+      </div>
+
+      <div class="toy" id="toy" role="application" aria-label="Juggling toy. Click or tap the ball, or press space, to keep it in the air.">
+        <canvas id="toy-canvas"></canvas>
+        <div class="hud">
+          <div>Juggles<b id="hud-score">0</b></div>
+          <div class="right">Best<b id="hud-best">0</b></div>
+        </div>
+        <p class="hint" id="toy-hint">Click the ball. Keep it up.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="work">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Selected work</h2>
+        <p>Open a project for the full breakdown: goals, my focus, tools, and where to play or view it.</p>
+      </div>
+      <div class="featured" id="featured"></div>
+    </div>
+  </section>
+
+  <section id="archive">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Archive</h2>
+        <div class="filters" role="group" aria-label="Filter archive">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="design" aria-pressed="false">Game design</button>
+          <button type="button" data-filter="art" aria-pressed="false">3D art</button>
+        </div>
+      </div>
+      <div class="archive" id="archive-grid"></div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap about-grid">
+      <div class="portrait cover" id="portrait"><span class="fallback">Hi!</span></div>
+      <div class="about-text">
+        <div>
+          <p class="label">About</p>
+          <h2 style="font: 400 var(--step-3)/1 var(--f-display); margin-top: 10px;">Hello, I'm Bar.</h2>
+        </div>
+        <div class="bio">
+          <p>I'm a generalist game designer studying Independent Game Production at DAE in Belgium.</p>
+          <p>I want to find the fun in every game, and to build kinds of experiences that haven't been made before. Most of my projects start from one small mechanic that I iterate on until it feels right, and I like doing the art for my own prototypes too.</p>
+        </div>
+        <div class="kit" id="kit"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="wrap contact-grid">
+      <div>
+        <h2>Let's talk.</h2>
+        <p>Questions, feedback, or an internship or project you think I'd fit? Send me a message and I'll get back to you as soon as I can.</p>
+        <div class="email-row">
+          <a id="email-link" href="#"></a>
+          <button class="copy" type="button" id="copy-email">Copy</button>
+        </div>
+      </div>
+      <ul class="links" id="social-links"></ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© <span id="year">2026</span> Bar Moreno</span>
+    <span>Built by hand, hosted on GitHub Pages.</span>
+  </div>
+</footer>
+
+<dialog id="project-dialog" aria-labelledby="dlg-title">
+  <button class="dlg-close" type="button" id="dlg-close" aria-label="Close project">✕</button>
+  <div id="dlg-content"></div>
+</dialog>
+
+<script src="projects.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
