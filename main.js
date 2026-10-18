@@ -6,10 +6,18 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ---------- Covers: real image if present, coloured title card if not ---------- */
+  /* ---------- Images: local file first, then online fallback, then title card ---------- */
+  window.__imgFail = function (img) {
+    const fb = img.getAttribute("data-fallback");
+    if (fb) { img.removeAttribute("data-fallback"); img.src = fb; } else img.remove();
+  };
+  const imgTag = (src, fallback, alt = "", lazy = true, style = "") =>
+    `<img src="${esc(src || fallback)}" alt="${esc(alt)}"${style ? ` style="${esc(style)}"` : ""}${lazy ? ' loading="lazy"' : ""}${src && fallback ? ` data-fallback="${esc(fallback)}"` : ""} onerror="__imgFail(this)">`;
+
   function cover(p, extra = "") {
-    const img = p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy" onerror="this.remove()">` : "";
-    const badge = p.video ? `<span class="play">▶ Video</span>` : p.sketchfab ? `<span class="play">3D</span>` : "";
+    const st = (p.imagePos ? `object-position:${p.imagePos};` : "") + (p.pixelArt ? "image-rendering:pixelated;" : "");
+    const img = p.image || p.imageOnline ? imgTag(p.image, p.imageOnline, "", true, st) : "";
+    const badge = p.youtube ? `<span class="play">▶ Trailer</span>` : p.video ? `<span class="play">▶ Video</span>` : p.sketchfab ? `<span class="play">3D</span>` : "";
     return `<div class="cover ${extra}" style="--h:${p.hue ?? 200}"><span class="fallback">${esc(p.title)}</span>${img}${badge}</div>`;
   }
 
@@ -44,10 +52,32 @@
   }));
 
   /* ---------- About kit ---------- */
+  const ICONS = window.SOFTWARE_ICONS || {};
+  const lum = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+  const softwareTile = s => {
+    const ic = ICONS[s];
+    const brand = ic && lum(ic.hex) > 0.25 && lum(ic.hex) < 0.85 ? ic.hex : "";
+    const svg = ic ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ic.path}"/></svg>` : `<span class="sw-initial" aria-hidden="true">${esc(s[0])}</span>`;
+    return `<li class="sw"${brand ? ` style="--brand:${brand}"` : ""}>${svg}<span>${esc(s)}</span></li>`;
+  };
   $("#kit").innerHTML =
-    `<div><h3 class="label">Software</h3><ul class="chips">${ME.software.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>` +
+    `<div class="software"><h3 class="label">Software</h3><ul class="sw-grid">${ME.software.map(softwareTile).join("")}</ul></div>` +
     Object.entries(ME.skills).map(([k, v]) =>
       `<div><h3 class="label">${esc(k)}</h3><ul>${v.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>`).join("");
+  if (ME.lookingFor && $("#looking")) {
+    const L = ME.lookingFor;
+    const box = $("#looking");
+    box.innerHTML = `
+      <p class="looking-tag"><span class="pulse" aria-hidden="true"></span>Open to an internship</p>
+      <h3>${esc(L.title)}</h3>
+      <dl>
+        <dt>When</dt><dd>${esc(L.when)}</dd>
+        <dt>Roles</dt><dd>${(L.roles || []).map(esc).join(" · ")}</dd>
+      </dl>
+      ${L.note ? `<p class="looking-note">${esc(L.note)}</p>` : ""}
+      <div class="looking-actions"><a class="btn primary" href="#contact">Get in touch</a><a class="btn" href="${esc(ME.cv)}" target="_blank" rel="noopener">See my CV ↗</a></div>`;
+    box.hidden = false;
+  }
   if (ME.photo) $("#portrait").insertAdjacentHTML("beforeend", `<img src="${esc(ME.photo)}" alt="Portrait of ${esc(ME.name)}" onerror="this.remove()">`);
 
   /* ---------- Contact ---------- */
@@ -62,7 +92,9 @@
   });
   function selectText(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
   $("#nav-cv").href = ME.cv;
-  $("#social-links").innerHTML = [...ME.socials, { label: "CV", note: "My experience on one page", url: ME.cv }].map(s => `
+  const extraLinks = [{ label: "CV", note: "My experience on one page", url: ME.cv }];
+  if (ME.letter) extraLinks.push({ label: "Motivational letter", note: "Why I make games, in my own words", url: ME.letter });
+  $("#social-links").innerHTML = [...ME.socials, ...extraLinks].map(s => `
     <li><a href="${esc(s.url)}" target="_blank" rel="noopener">
       <div><strong>${esc(s.label)}</strong><span>${esc(s.note)}</span></div><span class="arrow">→</span>
     </a></li>`).join("");
@@ -70,23 +102,73 @@
 
   /* ---------- Project dialog (deep link: #projectid) ---------- */
   const dlg = $("#project-dialog");
-  function media(p) {
-    if (p.video) {
-      const poster = p.image ? ` poster="${esc(p.image)}"` : "";
-      return `${cover(p)}<video controls playsinline preload="metadata"${poster} src="${esc(p.video)}" style="position:relative" onerror="this.remove()"></video>`;
+  /* Everything that can show in the big media area, in order */
+  function mediaItems(p) {
+    const items = [];
+    if (p.youtube) items.push({ type: "yt", label: "Trailer" });
+    else if (p.video) items.push({ type: "video", label: p.videoLabel || "Video", src: p.video, poster: p.image });
+    (p.videos || []).forEach(v => items.push({ type: "video", label: v.label || "Video", src: v.src, poster: v.poster, chapters: v.chapters }));
+    if (p.sketchfab) items.push({ type: "3d", label: "3D model" });
+    (p.gallery || []).forEach((g, i) => items.push({ type: "img", label: g.label || "Screenshot " + (i + 1), tag: g.label, src: g.src, online: g.online }));
+    if (!items.length) items.push({ type: "cover", label: "Cover" });
+    return items;
+  }
+  function stage(p, it) {
+    switch (it.type) {
+      case "yt":
+        return `<button class="yt-poster" type="button" data-yt="${esc(p.youtube)}" aria-label="Play ${esc(p.title)} trailer">
+            ${cover(p)}<span class="yt-play" aria-hidden="true">▶</span></button>`;
+      case "video":
+        return `${cover(p)}<video controls playsinline preload="metadata"${it.poster ? ` poster="${esc(it.poster)}"` : ""} src="${esc(it.src)}" style="position:absolute;inset:0" onerror="this.remove()"></video>`;
+      case "3d":
+        return `<div class="cover" style="--h:${p.hue ?? 200}"><span class="fallback">${esc(p.title)}</span>${p.image ? imgTag(p.image, p.imageOnline) : ""}</div>
+          <button class="sf-load" type="button" data-sf="${esc(p.sketchfab)}"><span>Load 3D viewer</span></button>`;
+      case "img":
+        return `<div class="cover shot" style="--h:${p.hue ?? 200}">${imgTag(it.src, it.online, it.label, false)}</div>`;
+      default:
+        return cover(p);
     }
-    return cover(p);
+  }
+  function thumb(p, it, i) {
+    let inner;
+    if (it.type === "img") inner = imgTag(it.src, it.online) + (it.tag ? `<span class="t-tag">${esc(it.tag)}</span>` : "");
+    else if (it.type === "yt") inner = (p.image || p.imageOnline ? imgTag(p.image, p.imageOnline) : "") + `<span class="t-tag">▶ Trailer</span>`;
+    else if (it.type === "video") inner = (it.poster ? imgTag(it.poster) : "") + `<span class="t-tag">▶ ${esc(it.label)}</span>`;
+    else if (it.type === "3d") inner = `<span class="t-tag">3D</span>`;
+    else inner = `<span class="t-tag">${esc(it.label)}</span>`;
+    return `<button type="button" class="thumb" data-item="${i}" aria-label="${esc(it.label)}" aria-pressed="${i === 0}" style="--h:${p.hue ?? 200}">${inner}</button>`;
+  }
+  function toolChip(t) {
+    const key = Object.keys(ICONS).sort((a, b) => b.length - a.length).find(k => t.toLowerCase().startsWith(k.toLowerCase()));
+    const ic = key && ICONS[key];
+    return `<li>${ic ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ic.path}"/></svg>` : ""}${esc(t)}</li>`;
+  }
+  function processBlock(p) {
+    const pr = p.process;
+    if (!pr) return "";
+    const steps = (pr.steps || []).map(s => `
+      <li class="${s.image || s.video ? "" : "no-img"}">${s.video
+        ? `<a href="${esc(s.video)}" target="_blank" rel="noopener" aria-label="Open the clip for ${esc(s.title)}"><video src="${esc(s.video)}"${s.poster ? ` poster="${esc(s.poster)}"` : ""} muted loop playsinline preload="none" data-autoplay></video></a>`
+        : s.image ? `<a href="${esc(s.image)}" target="_blank" rel="noopener">${imgTag(s.image, "", s.title)}</a>` : ""}<div><h4>${esc(s.title)}</h4>${(Array.isArray(s.text) ? s.text : [s.text]).filter(Boolean).map(t => `<p>${esc(t)}</p>`).join("")}${s.list ? `<ul class="process-list">${s.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${s.link ? `<a class="process-link" href="${esc(s.link.url)}" target="_blank" rel="noopener">${esc(s.link.label)} ↗</a>` : ""}</div></li>`).join("");
+    return `<section class="process">
+      <h3 class="label">Design process</h3>
+      ${pr.intro ? `<p>${esc(pr.intro)}</p>` : ""}
+      ${steps ? `<ol class="process-steps">${steps}</ol>` : ""}
+      <div class="process-actions">
+      ${pr.miro ? `<a class="btn primary" href="${esc(pr.miro)}" target="_blank" rel="noopener">Open the full process board on Miro ↗</a>` : ""}
+      ${pr.doc ? `<a class="btn${pr.miro ? "" : " primary"}" href="${esc(pr.doc.url)}" target="_blank" rel="noopener">${esc(pr.doc.label)} ↗</a>` : ""}
+      </div>
+    </section>`;
   }
   function openProject(id) {
     const p = P.find(x => x.id === id);
     if (!p) return;
+    const items = mediaItems(p);
     const specs = Object.entries(p.specs || {}).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
-    const tabs = p.sketchfab ? `<div class="media-tabs">
-        <button class="btn" type="button" data-media="main">${p.video ? "Video" : "Image"}</button>
-        <button class="btn primary" type="button" data-media="3d">Rotate in 3D</button></div>` : "";
     $("#dlg-content").innerHTML = `
-      <div class="dlg-media" id="dlg-media">${media(p)}</div>
-      ${tabs}
+      <div class="dlg-media" id="dlg-media">${stage(p, items[0])}</div>
+      <div class="chapters" id="dlg-chapters" hidden></div>
+      ${items.length > 1 ? `<div class="thumbs">${items.map((it, i) => thumb(p, it, i)).join("")}</div>` : ""}
       <div class="dlg-body">
         <div>
           <p class="label">${esc((p.disciplines || []).join(" / "))}</p>
@@ -97,17 +179,42 @@
           <h3>Project sheet</h3>
           <dl>${specs}</dl>
           ${p.focus ? `<div class="block"><span class="label">My focus</span><ul class="focus" style="grid-template-columns:1fr;border:0;padding:0">${p.focus.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>` : ""}
-          ${p.tools ? `<div class="block"><span class="label">Tools</span><ul class="chips">${p.tools.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : ""}
+          ${p.tools ? `<div class="block"><span class="label">Tools</span><ul class="chips tool-chips">${p.tools.map(toolChip).join("")}</ul></div>` : ""}
           ${p.links?.length ? `<div class="block">${p.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}</div>` : ""}
         </aside>
+        ${processBlock(p)}
       </div>`;
-    $("#dlg-content").querySelectorAll("[data-media]").forEach(b => b.addEventListener("click", () => {
-      const box = $("#dlg-media");
-      box.querySelectorAll("video").forEach(v => v.pause());
-      box.innerHTML = b.dataset.media === "3d"
-        ? `<iframe title="${esc(p.title)} 3D model" src="https://sketchfab.com/models/${esc(p.sketchfab)}/embed?autostart=1&ui_theme=dark&dnt=1" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe>`
-        : media(p);
+    const box = $("#dlg-media");
+    const chapBar = $("#dlg-chapters");
+    const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+    function showChapters(it) {
+      if (!it.chapters) { chapBar.hidden = true; chapBar.innerHTML = ""; return; }
+      chapBar.hidden = false;
+      chapBar.innerHTML = `<span class="label">Jump to</span>` + it.chapters.map(c =>
+        `<button type="button" data-t="${c.t}"><b>${fmt(c.t)}</b> ${esc(c.label)}</button>`).join("");
+      chapBar.querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => {
+        const v = box.querySelector("video"); if (!v) return;
+        v.currentTime = +b.dataset.t; v.play().catch(() => {});
+      }));
+    }
+    showChapters(items[0]);
+    box.addEventListener("click", e => {
+      const yt = e.target.closest("[data-yt]"), sf = e.target.closest("[data-sf]");
+      if (yt) box.innerHTML = `<iframe title="${esc(p.title)} trailer" src="https://www.youtube-nocookie.com/embed/${esc(yt.dataset.yt)}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+      if (sf) box.innerHTML = `<iframe title="${esc(p.title)} 3D model" src="https://sketchfab.com/models/${esc(sf.dataset.sf)}/embed?autostart=1&ui_theme=dark&dnt=1" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe>`;
+    });
+    $("#dlg-content").querySelectorAll("[data-item]").forEach(b => b.addEventListener("click", () => {
+      $("#dlg-content").querySelectorAll("[data-item]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      box.innerHTML = stage(p, items[+b.dataset.item]);
+      showChapters(items[+b.dataset.item]);
     }));
+    const clips = $("#dlg-content").querySelectorAll("video[data-autoplay]");
+    if (clips.length && !reduceMotion && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(entries => entries.forEach(en => {
+        if (en.isIntersecting) en.target.play().catch(() => {}); else en.target.pause();
+      }), { root: dlg, threshold: .4 });
+      clips.forEach(v => io.observe(v));
+    }
     if (!dlg.open) dlg.showModal();
     dlg.scrollTop = 0;
   }
@@ -130,6 +237,41 @@
   const fromHash = () => { const id = location.hash.slice(1); if (P.some(p => p.id === id)) openProject(id); };
   window.addEventListener("hashchange", fromHash);
   fromHash();
+
+  /* ---------- Smiley signature ---------- */
+  const smiley = $("#smiley");
+  if (smiley) {
+    let clicks = [], happyTimer;
+    smiley.addEventListener("click", () => {
+      const now = Date.now();
+      clicks = clicks.filter(t => now - t < 2000); clicks.push(now);
+      if (!reduceMotion) {
+        smiley.classList.remove("squish"); void smiley.offsetWidth; smiley.classList.add("squish");
+      }
+      if (clicks.length >= 5) {
+        clicks = [];
+        smiley.classList.add("happy");
+        if (!reduceMotion) { smiley.classList.remove("bounce"); void smiley.offsetWidth; smiley.classList.add("bounce"); }
+        clearTimeout(happyTimer);
+        happyTimer = setTimeout(() => smiley.classList.remove("happy"), 1800);
+      }
+    });
+    smiley.addEventListener("animationend", e => smiley.classList.remove(e.animationName === "smiley-bounce" ? "bounce" : "squish"));
+  }
+
+  /* ---------- Reel (replaces the toy once assets/reel.mp4 exists) ---------- */
+  const reelBox = $("#reel"), reelVid = $("#reel-video");
+  if (reelBox && reelVid && ME.reel) {
+    if (ME.reelPoster) reelVid.poster = ME.reelPoster;
+    reelVid.addEventListener("loadeddata", () => {
+      reelBox.hidden = false;
+      const toyEl = $("#toy"); if (toyEl) toyEl.hidden = true;
+      if (!reduceMotion) reelVid.play().catch(() => {});
+      else reelVid.controls = true;
+    }, { once: true });
+    reelVid.addEventListener("error", () => { reelBox.remove(); }, { once: true });
+    reelVid.src = ME.reel;
+  }
 
   /* ---------- Juggling toy ---------- */
   const box = $("#toy"), cvs = $("#toy-canvas"), ctx = cvs.getContext("2d");
