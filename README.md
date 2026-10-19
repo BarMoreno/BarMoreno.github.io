@@ -7,6 +7,7 @@ index.html     page layout and text (hero, about, contact)
 style.css      colours, fonts, layout
 projects.js    ALL project data + your links  ← edit this most
 main.js        renders projects, project pop-ups, juggling toy
+icons.js       software logos shown in the About section
 assets/        your images and videos go here
 ```
 
@@ -18,11 +19,13 @@ Any image that's missing shows a coloured title card instead, so the site never 
 | File | Used for |
 | --- | --- |
 | `assets/portrait.jpg` | About photo (portrait, about 4:5) |
-| `assets/og-card.jpg` | Preview image when the link is shared (1200×630) |
-| `assets/juggleshots.jpg` | Juggle Shots cover (16:10, ~1600px wide) |
-| `assets/juggleshots-trailer.mp4` | Juggle Shots trailer |
-| `assets/cavern.jpg` | Cavern cover |
+| `assets/og-card.jpg` | Preview image when the link is shared (1200×630) (done) |
+| `assets/reel.mp4` + `reel.jpg` | Looping reel in the top section (replaces the juggling toy automatically). Keep it short, silent, under ~10 MB |
+| `assets/letter.pdf` (optional) | Motivational letter; or put a Google Drive link in `letter:` in `projects.js` |
+| `assets/juggleshots.jpg` + `juggleshots-1…4.webp` | Juggle Shots cover + screenshots (done) |
+| `assets/cavern.png` + `cavern-1/2/3.webp` | Cavern cover + screenshots (done) |
 | `assets/alienplanet.jpg` / `alienplanet.mp4` | Fluffy Alien Planet cover / video |
+| `assets/observatory*` (cover, 5 screenshots, kit image, render, process and tech demo videos + posters) | Mountain Observatory (done) |
 | `assets/racingkart.jpg` | Racing Kart cover |
 | `assets/robuddy.jpg`, `lighthouse.jpg`, `farmdiorama.jpg` | Archive covers |
 
